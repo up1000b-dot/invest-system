@@ -127,7 +127,18 @@ td{padding:10px 12px;font-size:13px;color:var(--text);vertical-align:middle}
 .refresh-btn{padding:6px 12px;border:1px solid var(--border2);border-radius:5px;background:transparent;color:var(--text2);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;letter-spacing:.04em}
 .refresh-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
 
-/* MODAL */
+/* BRIEFING CARDS */
+.bf-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;transition:border-color .15s}
+.bf-card:hover{border-color:var(--border2)}
+.bf-card-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.bf-source{font-family:var(--mono);font-size:11px;color:var(--text3)}
+.bf-date{font-family:var(--mono);font-size:11px;color:var(--text3)}
+.bf-text{font-size:13px;color:var(--text2);line-height:1.7;white-space:pre-wrap;word-break:break-all}
+.bf-link{font-family:var(--mono);font-size:11px;color:var(--accent);text-decoration:none;margin-top:8px;display:inline-block}
+.bf-link:hover{text-decoration:underline}
+.p1-bar{border-left:3px solid var(--accent)}
+.p2-bar{border-left:3px solid var(--accent2)}
+.p3-bar{border-left:3px solid var(--text3)}
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:center;justify-content:center}
 .modal-bg.open{display:flex}
 .modal{background:var(--surface);border:1px solid var(--border2);border-radius:10px;width:640px;max-width:90vw;max-height:80vh;display:flex;flex-direction:column}
@@ -166,6 +177,7 @@ td{padding:10px 12px;font-size:13px;color:var(--text);vertical-align:middle}
 <nav class="tabbar">
   <button class="tab active" onclick="switchTab('sources',this)">// 자료 원천</button>
   <button class="tab" onclick="switchTab('stocks',this)">// 종목 관리</button>
+  <button class="tab" onclick="switchTab('briefing',this)">// 아침 브리핑</button>
   <button class="tab" style="margin-left:auto" onclick="openSettings()">⚙ KIS 설정 <span id="kis-status" style="font-size:10px;margin-left:4px;color:var(--text3)">미설정</span></button>
 </nav>
 
@@ -220,6 +232,29 @@ td{padding:10px 12px;font-size:13px;color:var(--text);vertical-align:middle}
     </div>
     <hr class="sidebar-divider"/>
     <button class="apply-btn" onclick="openStkModal()">▶ Claude에 적용</button>
+  </div>
+  <!-- Briefing sidebar -->
+  <div id="sb-briefing" style="display:none">
+    <div class="sidebar-section">
+      <div class="sidebar-label">필터</div>
+      <button class="filter-btn active" data-bf="all" onclick="bfFilter('all',this)">전체<span class="count" id="bf-cnt-all">0</span></button>
+      <button class="filter-btn" data-bf="1" onclick="bfFilter('1',this)"><span><span class="pri-dot dot-core"></span>핵심</span><span class="count" id="bf-cnt-1">0</span></button>
+      <button class="filter-btn" data-bf="2" onclick="bfFilter('2',this)"><span><span class="pri-dot dot-ref"></span>참고</span><span class="count" id="bf-cnt-2">0</span></button>
+      <button class="filter-btn" data-bf="3" onclick="bfFilter('3',this)"><span><span class="pri-dot dot-sub"></span>보조</span><span class="count" id="bf-cnt-3">0</span></button>
+    </div>
+    <hr class="sidebar-divider"/>
+    <div class="sidebar-section">
+      <div class="sidebar-label">유형</div>
+      <button class="filter-btn" data-bf="telegram" onclick="bfFilter('telegram',this)">텔레그램<span class="count" id="bf-cnt-tg">0</span></button>
+      <button class="filter-btn" data-bf="news" onclick="bfFilter('news',this)">언론사<span class="count" id="bf-cnt-news">0</span></button>
+    </div>
+    <hr class="sidebar-divider"/>
+    <div class="sidebar-section">
+      <div class="sidebar-label">액션</div>
+      <button class="filter-btn" onclick="bfSendToClaude()">Claude에 전달 ↗</button>
+    </div>
+    <hr class="sidebar-divider"/>
+    <button class="apply-btn" onclick="bfStart()">↻ 지금 수집</button>
   </div>
 </aside>
 
@@ -302,6 +337,22 @@ td{padding:10px 12px;font-size:13px;color:var(--text);vertical-align:middle}
       </table>
       <div class="empty-state" id="stk-empty" style="display:none">종목을 추가해주세요</div>
     </div>
+  </div>
+
+  <!-- PAGE: BRIEFING -->
+  <div class="page" id="page-briefing">
+    <!-- 상태 바 -->
+    <div class="meta-row">
+      <span>마지막 수집: <span id="bf-last-update">—</span> · <span id="bf-count">0</span>건</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="bf-status-txt" style="font-family:var(--mono);font-size:11px;color:var(--text3)"></span>
+        <button class="refresh-btn" onclick="bfStart()">↻ 수집 시작</button>
+      </div>
+    </div>
+
+    <!-- 스크랩 카드 목록 -->
+    <div id="bf-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="empty-state" id="bf-empty">수집 버튼을 눌러 아침 브리핑을 시작하세요</div>
   </div>
 
 </main>
@@ -390,8 +441,11 @@ function switchTab(tab, btn) {
   btn.classList.add('active');
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + tab).classList.add('active');
-  document.getElementById('sb-sources').style.display = tab === 'sources' ? '' : 'none';
-  document.getElementById('sb-stocks').style.display  = tab === 'stocks'  ? '' : 'none';
+  document.getElementById('sb-sources').style.display  = tab === 'sources'  ? '' : 'none';
+  document.getElementById('sb-stocks').style.display   = tab === 'stocks'   ? '' : 'none';
+  document.getElementById('sb-briefing').style.display = tab === 'briefing' ? '' : 'none';
+  if(tab === 'briefing') bfLoad();
+}
 }
 
 /* ══════════════════════
@@ -812,6 +866,112 @@ function stkBuildTxt() {
     }).join('\n');
 }
 function openStkModal(){openModal('// 종목 목록', stkBuildTxt());}
+
+/* ══════════════════════
+   BRIEFING
+══════════════════════ */
+const SCRAPER = 'http://localhost:5001';
+let bfArticles = [], bfFilt = 'all';
+
+function bfFilter(f, btn) {
+  bfFilt = f;
+  document.querySelectorAll('[data-bf]').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  bfRender();
+}
+
+function bfGetFiltered() {
+  return bfArticles.filter(a => {
+    if(bfFilt==='all')      return true;
+    if(bfFilt==='1')        return a.priority===1;
+    if(bfFilt==='2')        return a.priority===2;
+    if(bfFilt==='3')        return a.priority===3;
+    if(bfFilt==='telegram') return a.type==='telegram';
+    if(bfFilt==='news')     return a.type==='news';
+    return true;
+  });
+}
+
+function bfRender() {
+  const f = bfGetFiltered();
+  const list  = document.getElementById('bf-list');
+  const empty = document.getElementById('bf-empty');
+  empty.style.display = f.length===0 ? 'block' : 'none';
+  list.innerHTML = f.map(a=>`
+    <div class="bf-card p${a.priority}-bar">
+      <div class="bf-card-head">
+        <span class="badge ${a.type==='telegram'?'b-tg':'b-news'}">${a.source}</span>
+        <span class="bf-date">${a.date}</span>
+        ${a.priority===1?'<span style="font-family:var(--mono);font-size:10px;color:var(--accent)">★ 핵심</span>':''}
+      </div>
+      <div class="bf-text">${(a.title||a.text||'').replace(/</g,'&lt;')}</div>
+      <a class="bf-link" href="${a.url}" target="_blank" rel="noopener">→ 원문 보기</a>
+    </div>`).join('');
+  bfUpdateCounts();
+}
+
+function bfUpdateCounts() {
+  const all = bfArticles;
+  document.getElementById('bf-cnt-all').textContent  = all.length;
+  document.getElementById('bf-cnt-1').textContent    = all.filter(a=>a.priority===1).length;
+  document.getElementById('bf-cnt-2').textContent    = all.filter(a=>a.priority===2).length;
+  document.getElementById('bf-cnt-3').textContent    = all.filter(a=>a.priority===3).length;
+  document.getElementById('bf-cnt-tg').textContent   = all.filter(a=>a.type==='telegram').length;
+  document.getElementById('bf-cnt-news').textContent = all.filter(a=>a.type==='news').length;
+  document.getElementById('bf-count').textContent    = all.length;
+}
+
+async function bfStart() {
+  const statusEl = document.getElementById('bf-status-txt');
+  statusEl.textContent = '수집 중...';
+  statusEl.style.color = 'var(--accent2)';
+  try {
+    await fetch(SCRAPER+'/scrape/start', {method:'POST'});
+    let tries = 0;
+    const poll = setInterval(async () => {
+      tries++;
+      try {
+        const res  = await fetch(SCRAPER+'/scrape/status');
+        const data = await res.json();
+        if(data.status==='done') {
+          clearInterval(poll);
+          await bfLoad();
+          statusEl.textContent = '수집 완료';
+          statusEl.style.color = 'var(--accent)';
+        } else if(data.status==='error') {
+          clearInterval(poll);
+          statusEl.textContent = '오류: '+data.error;
+          statusEl.style.color = 'var(--red)';
+        } else if(tries > 60) {
+          clearInterval(poll);
+          statusEl.textContent = '시간 초과';
+          statusEl.style.color = 'var(--red)';
+        }
+      } catch(e) { clearInterval(poll); }
+    }, 3000);
+  } catch(e) {
+    statusEl.textContent = 'scraper.py 미실행';
+    statusEl.style.color = 'var(--red)';
+  }
+}
+
+async function bfLoad() {
+  try {
+    const res  = await fetch(SCRAPER+'/scrape/articles');
+    const data = await res.json();
+    bfArticles = data.articles || [];
+    document.getElementById('bf-last-update').textContent = data.last_update || '—';
+    bfRender();
+  } catch(e) {}
+}
+
+function bfSendToClaude() {
+  const f = bfGetFiltered().slice(0, 30);
+  if(!f.length){ toast2('수집된 기사가 없습니다', true); return; }
+  const txt = `아래는 오늘 아침 수집된 투자 관련 뉴스/인사이트입니다. 핵심 내용을 요약하고 투자 관점에서 중요한 포인트를 분석해주세요.\n\n`+
+    f.map((a,i)=>`[${i+1}] (${a.source} / ${a.priority===1?'핵심':a.priority===2?'참고':'보조'})\n${a.title||a.text}\n${a.url}`).join('\n\n');
+  navigator.clipboard.writeText(txt).then(()=>toast2('Claude용 브리핑 복사 완료'));
+}
 
 /* ── INIT ── */
 document.addEventListener('keydown', e => {
