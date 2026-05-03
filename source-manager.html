@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>투자 분석 시스템</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:#0d0f0e; --surface:#141714; --surface2:#1a1e1a;
+  --border:#2a2e2a; --border2:#363b36;
+  --text:#e8ede8; --text2:#8a9a8a; --text3:#5a6a5a;
+  --accent:#4ade80; --accent-dim:#1a3d26;
+  --accent2:#f59e0b; --accent2-dim:#2d2200;
+  --red:#ef4444; --red-dim:#2d0f0f;
+  --blue:#60a5fa; --blue-dim:#0f1e3d;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'Noto Sans KR',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh}
+
+.shell{display:grid;grid-template-columns:220px 1fr;grid-template-rows:52px 44px 1fr;min-height:100vh}
+
+/* TOPBAR */
+.topbar{grid-column:1/-1;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--bg)}
+.topbar-logo{font-family:var(--mono);font-size:13px;color:var(--accent);letter-spacing:.04em}
+.topbar-logo span{color:var(--text3)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-stat{font-family:var(--mono);font-size:12px;color:var(--text3)}
+.topbar-stat b{color:var(--text2);font-weight:500}
+
+/* TABS */
+.tabbar{grid-column:1/-1;border-bottom:1px solid var(--border);display:flex;align-items:stretch;padding:0 24px;background:var(--surface);gap:4px}
+.tab{font-family:var(--mono);font-size:12px;color:var(--text3);padding:0 16px;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;letter-spacing:.04em;margin-bottom:-1px}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* SIDEBAR */
+.sidebar{border-right:1px solid var(--border);padding:20px 0;background:var(--surface);overflow-y:auto}
+.sidebar-section{padding:0 16px;margin-bottom:24px}
+.sidebar-label{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;padding:0 4px}
+.filter-btn{display:flex;align-items:center;justify-content:space-between;width:100%;padding:7px 10px;border-radius:6px;border:none;background:transparent;color:var(--text2);font-family:var(--sans);font-size:13px;cursor:pointer;text-align:left;transition:background .15s,color .15s}
+.filter-btn:hover{background:var(--surface2);color:var(--text)}
+.filter-btn.active{background:var(--accent-dim);color:var(--accent)}
+.filter-btn .count{font-family:var(--mono);font-size:11px;color:var(--text3);background:var(--surface2);padding:1px 6px;border-radius:10px;min-width:24px;text-align:center}
+.filter-btn.active .count{background:var(--accent-dim);color:var(--accent)}
+.pri-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.dot-core{background:var(--accent)} .dot-ref{background:var(--accent2)} .dot-sub{background:var(--text3)}
+.sidebar-divider{border:none;border-top:1px solid var(--border);margin:8px 16px 16px}
+.apply-btn{display:block;width:calc(100% - 32px);margin:0 16px;padding:10px;border:1px solid var(--accent);border-radius:6px;background:transparent;color:var(--accent);font-family:var(--mono);font-size:12px;cursor:pointer;text-align:center;transition:background .15s;letter-spacing:.04em}
+.apply-btn:hover{background:var(--accent-dim)}
+
+/* MAIN */
+.main{overflow-y:auto;padding:24px 28px;background:var(--bg)}
+.page{display:none}.page.active{display:block}
+
+/* FORMS */
+.add-form{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px 20px;margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase}
+.field input,.field select{background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:var(--sans);font-size:13px;padding:7px 10px;outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.field input::placeholder{color:var(--text3)}
+.field select option{background:var(--surface2)}
+.add-submit{padding:7px 18px;border:1px solid var(--accent);border-radius:5px;background:transparent;color:var(--accent);font-family:var(--mono);font-size:12px;cursor:pointer;transition:background .15s;white-space:nowrap;align-self:flex-end;height:36px}
+.add-submit:hover{background:var(--accent-dim)}
+
+/* TABLE */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+thead th{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);font-weight:400}
+.num-right{text-align:right!important}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:hover{background:var(--surface)}
+td{padding:10px 12px;font-size:13px;color:var(--text);vertical-align:middle}
+
+/* BADGES */
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:4px;letter-spacing:.04em}
+.b-tg{background:var(--blue-dim);color:var(--blue);border:1px solid #1a3560}
+.b-news{background:var(--accent2-dim);color:var(--accent2);border:1px solid #3d2e00}
+.b-report{background:var(--accent-dim);color:var(--accent);border:1px solid #1a3d26}
+.b-hold{background:#1e1a2d;color:#a78bfa;border:1px solid #2e2550}
+.b-watch{background:#1a2020;color:#5eead4;border:1px solid #1a3530}
+
+/* CONTROLS */
+.pri-select{background:transparent;border:1px solid var(--border2);border-radius:5px;color:var(--text2);font-family:var(--mono);font-size:11px;padding:4px 6px;cursor:pointer;outline:none;width:90px}
+.pri-select option{background:var(--surface2)}
+.del-btn{background:transparent;border:1px solid var(--border2);border-radius:5px;color:var(--text3);font-family:var(--mono);font-size:11px;padding:4px 10px;cursor:pointer;transition:all .15s}
+.del-btn:hover{background:var(--red-dim);color:var(--red);border-color:#5a1a1a}
+.ref-btn{background:transparent;border:1px solid var(--border2);border-radius:5px;color:var(--text3);font-family:var(--mono);font-size:12px;padding:4px 8px;cursor:pointer;transition:all .15s}
+.ref-btn:hover{background:var(--accent-dim);color:var(--accent);border-color:var(--accent)}
+.ref-btn.spin{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* PRICE */
+.price-val{font-family:var(--mono);font-size:13px;font-weight:500}
+.price-na{color:var(--text3);font-family:var(--mono);font-size:11px}
+.chg-pos{color:var(--accent);font-family:var(--mono);font-size:12px}
+.chg-neg{color:var(--red);font-family:var(--mono);font-size:12px}
+.chg-neu{color:var(--text3);font-family:var(--mono);font-size:12px}
+.cap-val{font-family:var(--mono);font-size:12px;color:var(--text2)}
+
+/* META ROW */
+.meta-row{font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.change-badge{color:var(--accent2)}
+.src-name-link{color:var(--text);text-decoration:none;font-weight:500;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.src-name-link:hover{color:var(--accent)}
+.src-url-text{color:var(--text3);font-family:var(--mono);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.empty-state{text-align:center;padding:48px 0;color:var(--text3);font-size:13px}
+
+/* SUMMARY CARDS */
+.sum-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.sum-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px}
+.sum-label{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.sum-val{font-family:var(--mono);font-size:20px;font-weight:500}
+.sum-sub{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* HINT */
+.hint-box{font-family:var(--mono);font-size:11px;color:var(--text3);padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;margin-bottom:16px;line-height:1.8}
+
+/* REFRESH BTN */
+.refresh-btn{padding:6px 12px;border:1px solid var(--border2);border-radius:5px;background:transparent;color:var(--text2);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;letter-spacing:.04em}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:10px;width:640px;max-width:90vw;max-height:80vh;display:flex;flex-direction:column}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.modal-title{font-family:var(--mono);font-size:13px;color:var(--accent);letter-spacing:.04em}
+.modal-close{background:transparent;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:2px 6px}
+.modal-close:hover{color:var(--text)}
+.modal-body{flex:1;overflow-y:auto;padding:16px 20px}
+.modal-body pre{font-family:var(--mono);font-size:12px;color:var(--text2);white-space:pre-wrap;word-break:break-all;line-height:1.8}
+.modal-foot{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.modal-btn{padding:8px 16px;border-radius:5px;border:1px solid var(--border2);background:transparent;color:var(--text2);font-family:var(--mono);font-size:12px;cursor:pointer;transition:background .15s}
+.modal-btn:hover{background:var(--surface2);color:var(--text)}
+.modal-btn.primary{border-color:var(--accent);color:var(--accent)}
+.modal-btn.primary:hover{background:var(--accent-dim)}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--accent);color:var(--accent);font-family:var(--mono);font-size:12px;padding:10px 18px;border-radius:6px;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;z-index:200;letter-spacing:.04em}
+.toast.show{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-logo">invest<span>.</span>system <span>// 한국 주식 투자분석</span></div>
+  <div class="topbar-right">
+    <span class="topbar-stat">원천 <b id="stat-src">0</b></span>
+    <span class="topbar-stat">·</span>
+    <span class="topbar-stat">보유 <b id="stat-hold">0</b></span>
+    <span class="topbar-stat">관심 <b id="stat-watch">0</b></span>
+  </div>
+</header>
+
+<!-- TABS -->
+<nav class="tabbar">
+  <button class="tab active" onclick="switchTab('sources',this)">// 자료 원천</button>
+  <button class="tab" onclick="switchTab('stocks',this)">// 종목 관리</button>
+  <button class="tab" style="margin-left:auto" onclick="openSettings()">⚙ KIS 설정 <span id="kis-status" style="font-size:10px;margin-left:4px;color:var(--text3)">미설정</span></button>
+</nav>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <!-- Sources sidebar -->
+  <div id="sb-sources">
+    <div class="sidebar-section">
+      <div class="sidebar-label">유형 필터</div>
+      <button class="filter-btn active" data-sf="all" onclick="srcFilter('all',this)">전체<span class="count" id="cnt-all">0</span></button>
+      <button class="filter-btn" data-sf="telegram" onclick="srcFilter('telegram',this)">텔레그램<span class="count" id="cnt-tg">0</span></button>
+      <button class="filter-btn" data-sf="news" onclick="srcFilter('news',this)">언론사<span class="count" id="cnt-news">0</span></button>
+      <button class="filter-btn" data-sf="report" onclick="srcFilter('report',this)">리포트<span class="count" id="cnt-report">0</span></button>
+    </div>
+    <hr class="sidebar-divider"/>
+    <div class="sidebar-section">
+      <div class="sidebar-label">중요도</div>
+      <button class="filter-btn" data-sf="p1" onclick="srcFilter('p1',this)"><span><span class="pri-dot dot-core"></span>핵심</span><span class="count" id="cnt-p1">0</span></button>
+      <button class="filter-btn" data-sf="p2" onclick="srcFilter('p2',this)"><span><span class="pri-dot dot-ref"></span>참고</span><span class="count" id="cnt-p2">0</span></button>
+      <button class="filter-btn" data-sf="p3" onclick="srcFilter('p3',this)"><span><span class="pri-dot dot-sub"></span>보조</span><span class="count" id="cnt-p3">0</span></button>
+    </div>
+    <hr class="sidebar-divider"/>
+    <div class="sidebar-section">
+      <div class="sidebar-label">리밸런싱</div>
+      <button class="filter-btn" onclick="openSrcModal()">목록 내보내기</button>
+      <button class="filter-btn" onclick="copySrc()">Claude용 복사</button>
+    </div>
+    <hr class="sidebar-divider"/>
+    <button class="apply-btn" onclick="copySrc();toast2('복사 완료 — Claude 대화창에 붙여넣기 해주세요')">▶ Claude에 적용</button>
+  </div>
+
+  <!-- Stocks sidebar -->
+  <div id="sb-stocks" style="display:none">
+    <div class="sidebar-section">
+      <div class="sidebar-label">분류</div>
+      <button class="filter-btn active" data-sf2="all" onclick="stkFilter('all',this)">전체<span class="count" id="sc-all">0</span></button>
+      <button class="filter-btn" data-sf2="hold" onclick="stkFilter('hold',this)">보유<span class="count" id="sc-hold">0</span></button>
+      <button class="filter-btn" data-sf2="watch" onclick="stkFilter('watch',this)">관심<span class="count" id="sc-watch">0</span></button>
+    </div>
+    <hr class="sidebar-divider"/>
+    <div class="sidebar-section">
+      <div class="sidebar-label">시장</div>
+      <button class="filter-btn" data-sf2="kospi" onclick="stkFilter('kospi',this)">코스피<span class="count" id="sc-kospi">0</span></button>
+      <button class="filter-btn" data-sf2="kosdaq" onclick="stkFilter('kosdaq',this)">코스닥<span class="count" id="sc-kosdaq">0</span></button>
+    </div>
+    <hr class="sidebar-divider"/>
+    <div class="sidebar-section">
+      <div class="sidebar-label">액션</div>
+      <button class="filter-btn" onclick="refreshAll()">전체 시세 갱신</button>
+      <button class="filter-btn" onclick="openStkModal()">종목 목록 복사</button>
+    </div>
+    <hr class="sidebar-divider"/>
+    <button class="apply-btn" onclick="openStkModal()">▶ Claude에 적용</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- PAGE: SOURCES -->
+  <div class="page active" id="page-sources">
+    <div class="add-form">
+      <div class="field" style="flex:0 0 128px"><label>채널명</label><input id="fn" placeholder="채널명"/></div>
+      <div class="field" style="flex:1 1 200px"><label>URL</label><input id="fu" placeholder="https://"/></div>
+      <div class="field" style="flex:0 0 108px"><label>유형</label>
+        <select id="ft"><option value="telegram">텔레그램</option><option value="news">언론사</option><option value="report">리포트</option></select>
+      </div>
+      <div class="field" style="flex:0 0 96px"><label>중요도</label>
+        <select id="fp"><option value="1">핵심</option><option value="2">참고</option><option value="3">보조</option></select>
+      </div>
+      <button class="add-submit" onclick="srcAdd()">+ 추가</button>
+    </div>
+    <div class="meta-row">
+      <span>저장: <span id="src-saved">—</span></span>
+      <span class="change-badge" id="src-changes"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:148px">채널명</th><th style="width:86px">유형</th>
+          <th>URL</th><th style="width:106px">중요도</th><th style="width:58px"></th>
+        </tr></thead>
+        <tbody id="src-body"></tbody>
+      </table>
+      <div class="empty-state" id="src-empty" style="display:none">원천이 없습니다</div>
+    </div>
+  </div>
+
+  <!-- PAGE: STOCKS -->
+  <div class="page" id="page-stocks">
+    <div class="add-form">
+      <div class="field" style="flex:0 0 116px"><label>종목명</label><input id="sn" placeholder="삼성전자"/></div>
+      <div class="field" style="flex:0 0 124px"><label>종목코드</label><input id="st" placeholder="005930"/></div>
+      <div class="field" style="flex:0 0 86px"><label>분류</label>
+        <select id="sc"><option value="hold">보유</option><option value="watch">관심</option></select>
+      </div>
+      <div class="field" style="flex:0 0 86px"><label>시장</label>
+        <select id="sm"><option value="kospi">코스피</option><option value="kosdaq">코스닥</option></select>
+      </div>
+      <div class="field" style="flex:1 1 130px"><label>메모</label><input id="sm2" placeholder="투자 thesis"/></div>
+      <button class="add-submit" onclick="stkAdd()">+ 추가</button>
+    </div>
+    <div class="hint-box">
+      KIS API 티커: <b>종목코드 6자리</b>만 입력 &nbsp;예) <b>005930</b> = 삼성전자 &nbsp;|&nbsp; <b>000660</b> = SK하이닉스 &nbsp;|&nbsp; <b>035420</b> = NAVER &nbsp;|&nbsp; <b>247540</b> = 에코프로비엠
+    </div>
+
+    <div class="sum-grid" id="stk-cards">
+      <div class="sum-card"><div class="sum-label">전체 종목</div><div class="sum-val" id="sv-total">0</div><div class="sum-sub">—</div></div>
+      <div class="sum-card"><div class="sum-label">상승</div><div class="sum-val" style="color:var(--accent)" id="sv-up">—</div><div class="sum-sub">시세 조회 기준</div></div>
+      <div class="sum-card"><div class="sum-label">하락</div><div class="sum-val" style="color:var(--red)" id="sv-dn">—</div><div class="sum-sub">시세 조회 기준</div></div>
+      <div class="sum-card"><div class="sum-label">보합</div><div class="sum-val" style="color:var(--text3)" id="sv-ne">—</div><div class="sum-sub">시세 조회 기준</div></div>
+    </div>
+
+    <div class="meta-row">
+      <span>시세 갱신: <span id="stk-refreshed">—</span></span>
+      <button class="refresh-btn" onclick="refreshAll()">↻ 전체 갱신</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:110px">종목명</th>
+          <th style="width:75px">티커</th>
+          <th style="width:260px" class="num-right">현재가</th>
+          <th style="width:84px" class="num-right">등락률</th>
+          <th style="width:100px" class="num-right">시가총액</th>
+          <th style="width:65px">분류</th>
+          <th style="min-width:80px">메모</th>
+          <th style="width:46px">시세</th>
+          <th style="width:46px"></th>
+        </tr></thead>
+        <tbody id="stk-body"></tbody>
+      </table>
+      <div class="empty-state" id="stk-empty" style="display:none">종목을 추가해주세요</div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div id="settings-panel" style="display:none;position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.6);align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;width:520px;max-width:92vw">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)">
+      <span style="font-family:var(--mono);font-size:13px;color:var(--accent);letter-spacing:.04em">// KIS API 설정</span>
+      <button onclick="closeSettings()" style="background:transparent;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:2px 6px">×</button>
+    </div>
+    <div style="padding:22px">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:20px;line-height:1.9">
+        키는 이 기기의 브라우저 로컬 스토리지에만 저장됩니다.<br>
+        프록시 서버 상태: <span id="proxy-status-txt" style="color:var(--red)">미실행</span><br>
+        <span style="color:var(--text3)">실행 방법: <b style="color:var(--text2)">pip install flask requests flask-cors</b> 후 <b style="color:var(--text2)">python kis_proxy.py</b></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <label style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">App Key</label>
+          <input id="cfg-appkey" type="password" placeholder="앱키 36자리" style="background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 12px;outline:none;width:100%"/>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <label style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">App Secret</label>
+          <input id="cfg-appsecret" type="password" placeholder="앱시크릿 180자리" style="background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 12px;outline:none;width:100%"/>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+        <button id="test-btn" onclick="testKisToken()" style="padding:8px 16px;border:1px solid var(--border2);border-radius:5px;background:transparent;color:var(--text2);font-family:var(--mono);font-size:12px;cursor:pointer">연결 테스트</button>
+        <button onclick="saveSettings()" style="padding:8px 20px;border:1px solid var(--accent);border-radius:5px;background:transparent;color:var(--accent);font-family:var(--mono);font-size:12px;cursor:pointer">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="modal-ttl">// 내보내기</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body"><pre id="modal-txt"></pre></div>
+    <div class="modal-foot">
+      <button class="modal-btn" onclick="closeModal()">닫기</button>
+      <button class="modal-btn primary" onclick="copyModal()">복사</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── UTILS ── */
+function toast2(msg, err) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.borderColor = err ? 'var(--red)' : 'var(--accent)';
+  el.style.color = err ? 'var(--red)' : 'var(--accent)';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+let _modalTxt = '';
+function openModal(ttl, txt) {
+  _modalTxt = txt;
+  document.getElementById('modal-ttl').textContent = ttl;
+  document.getElementById('modal-txt').textContent = txt;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function copyModal() { navigator.clipboard.writeText(_modalTxt).then(() => { toast2('복사되었습니다'); closeModal(); }); }
+
+document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Enter') {
+    if (['fn','fu'].includes(e.target.id)) srcAdd();
+    if (['sn','st','sm2'].includes(e.target.id)) stkAdd();
+  }
+});
+
+/* ── TAB ── */
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  document.getElementById('sb-sources').style.display = tab === 'sources' ? '' : 'none';
+  document.getElementById('sb-stocks').style.display  = tab === 'stocks'  ? '' : 'none';
+}
+
+/* ══════════════════════
+   SOURCES
+══════════════════════ */
+const SK = 'src_v2';
+let srcs = [], sfilt = 'all', sNid = 100, sCh = 0;
+
+const SDEFS = [
+  {id:1, name:'현명한투기꾼', url:'https://t.me/prudent_speculator', type:'telegram', pri:1},
+  {id:2, name:'루팡',         url:'https://t.me/bornlupin',          type:'telegram', pri:1},
+  {id:3, name:'블룸버그 소식', url:'https://t.me/WalterBloomberg',   type:'telegram', pri:1},
+  {id:4, name:'사제콩이',      url:'https://t.me/ehdwl',             type:'telegram', pri:1},
+  {id:5, name:'FnGuide',       url:'https://www.fnguide.com/',       type:'report',   pri:1},
+  {id:6, name:'올바른',        url:'https://t.me/allbareun',         type:'telegram', pri:2},
+  {id:7, name:'탐방왕',        url:'https://t.me/tambangwang',       type:'telegram', pri:2},
+  {id:8, name:'메리츠 반도체', url:'https://t.me/merITz_tech',      type:'telegram', pri:2},
+  {id:9, name:'신한 바이오',   url:'https://t.me/bio_shinhan',       type:'telegram', pri:2},
+  {id:10,name:'카에데',        url:'https://t.me/cahier_de_market',  type:'telegram', pri:2},
+  {id:11,name:'뉴스 추출',     url:'https://t.me/ssenepod',          type:'telegram', pri:2},
+  {id:12,name:'한국경제',      url:'https://www.hankyung.com/',      type:'news',     pri:2},
+  {id:13,name:'매일경제',      url:'https://www.mk.co.kr/',          type:'news',     pri:2},
+  {id:14,name:'더벨',          url:'https://www.thebell.co.kr/front/index.asp', type:'news', pri:2},
+  {id:15,name:'마켓인사이트',  url:'https://marketinsight.hankyung.com/', type:'news', pri:2},
+  {id:16,name:'KKK',           url:'https://t.me/kkkontemp',         type:'telegram', pri:3},
+];
+
+const TL = {telegram:'텔레그램', news:'언론사', report:'리포트'};
+const TB = {telegram:'b-tg', news:'b-news', report:'b-report'};
+const PL = {1:'핵심', 2:'참고', 3:'보조'};
+
+function srcLoad() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SK)||'null');
+    if (d) { srcs = d.srcs; sNid = (Math.max(...srcs.map(s=>s.id))||99)+1; return d.at; }
+  } catch(e){}
+  srcs = JSON.parse(JSON.stringify(SDEFS)); return null;
+}
+function srcSave() {
+  const at = new Date().toLocaleString('ko-KR');
+  localStorage.setItem(SK, JSON.stringify({srcs, at}));
+  document.getElementById('src-saved').textContent = at;
+  sCh = 0; document.getElementById('src-changes').textContent = '';
+}
+function srcMark() { sCh++; document.getElementById('src-changes').textContent = `미저장 ${sCh}건`; }
+
+function srcFilt() {
+  return srcs.filter(s => {
+    if (sfilt==='all') return true;
+    if (sfilt==='telegram') return s.type==='telegram';
+    if (sfilt==='news')     return s.type==='news';
+    if (sfilt==='report')   return s.type==='report';
+    if (sfilt==='p1')       return s.pri===1;
+    if (sfilt==='p2')       return s.pri===2;
+    if (sfilt==='p3')       return s.pri===3;
+    return true;
+  });
+}
+
+function srcRender() {
+  const f = srcFilt();
+  document.getElementById('src-empty').style.display = f.length===0 ? 'block' : 'none';
+  document.getElementById('src-body').innerHTML = f.map(s=>`
+    <tr>
+      <td><a class="src-name-link" href="${s.url}" target="_blank" rel="noopener">${s.name}</a></td>
+      <td><span class="badge ${TB[s.type]}">${TL[s.type]}</span></td>
+      <td><span class="src-url-text">${s.url}</span></td>
+      <td><select class="pri-select" onchange="srcPri(${s.id},this.value)">
+        <option value="1" ${s.pri===1?'selected':''}>● 핵심</option>
+        <option value="2" ${s.pri===2?'selected':''}>● 참고</option>
+        <option value="3" ${s.pri===3?'selected':''}>● 보조</option>
+      </select></td>
+      <td><button class="del-btn" onclick="srcDel(${s.id})">제거</button></td>
+    </tr>`).join('');
+  srcStats();
+}
+
+function srcStats() {
+  document.getElementById('stat-src').textContent   = srcs.length;
+  document.getElementById('cnt-all').textContent    = srcs.length;
+  document.getElementById('cnt-tg').textContent     = srcs.filter(s=>s.type==='telegram').length;
+  document.getElementById('cnt-news').textContent   = srcs.filter(s=>s.type==='news').length;
+  document.getElementById('cnt-report').textContent = srcs.filter(s=>s.type==='report').length;
+  document.getElementById('cnt-p1').textContent     = srcs.filter(s=>s.pri===1).length;
+  document.getElementById('cnt-p2').textContent     = srcs.filter(s=>s.pri===2).length;
+  document.getElementById('cnt-p3').textContent     = srcs.filter(s=>s.pri===3).length;
+}
+
+function srcFilter(f, btn) {
+  sfilt = f;
+  document.querySelectorAll('[data-sf]').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  srcRender();
+}
+function srcPri(id, v) {
+  const s = srcs.find(s=>s.id===id);
+  if(s){s.pri=parseInt(v); srcMark(); srcSave(); srcStats();}
+}
+function srcDel(id) {
+  srcs = srcs.filter(s=>s.id!==id); srcMark(); srcSave(); srcRender(); toast2('제거되었습니다');
+}
+function srcAdd() {
+  const n=document.getElementById('fn').value.trim(), u=document.getElementById('fu').value.trim();
+  const t=document.getElementById('ft').value, p=parseInt(document.getElementById('fp').value);
+  if(!n||!u){toast2('채널명과 URL을 입력해주세요',true);return;}
+  srcs.push({id:sNid++, name:n, url:u.startsWith('http')?u:'https://'+u, type:t, pri:p});
+  document.getElementById('fn').value=document.getElementById('fu').value='';
+  srcMark(); srcSave(); srcRender(); toast2('추가되었습니다');
+}
+function srcBuildTxt() {
+  const sorted=[...srcs].sort((a,b)=>a.pri-b.pri);
+  return `아래는 현재 리밸런싱된 한국 주식 투자분석 자료 원천 목록입니다. 이 목록을 시스템에 적용해주세요.\n\n`+
+    sorted.map((s,i)=>`${i+1}. [${TL[s.type]}][${PL[s.pri]}] ${s.name} — ${s.url}`).join('\n');
+}
+function openSrcModal(){openModal('// 자료 원천 목록', srcBuildTxt());}
+function copySrc(){navigator.clipboard.writeText(srcBuildTxt()).then(()=>toast2('복사되었습니다'));}
+
+/* ══════════════════════
+   STOCKS
+══════════════════════ */
+const TK = 'stk_v1';
+let stks = [], stFilt = 'all', stNid = 200;
+
+function stkLoad() {
+  try {
+    const d = JSON.parse(localStorage.getItem(TK)||'null');
+    if (d) { stks = d.stks; stNid = stks.length?(Math.max(...stks.map(s=>s.id))||199)+1:200; return d.at; }
+  } catch(e){}
+  stks = []; return null;
+}
+function stkSave() {
+  localStorage.setItem(TK, JSON.stringify({stks, at:new Date().toLocaleString('ko-KR')}));
+}
+
+function stkFilt() {
+  return stks.filter(s=>{
+    if(stFilt==='hold')   return s.type==='hold';
+    if(stFilt==='watch')  return s.type==='watch';
+    if(stFilt==='kospi')  return s.mkt==='kospi';
+    if(stFilt==='kosdaq') return s.mkt==='kosdaq';
+    return true;
+  });
+}
+
+function stkFilter(f, btn) {
+  stFilt = f;
+  document.querySelectorAll('[data-sf2]').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  stkRender();
+}
+
+function fmtCap(v) {
+  if(!v) return '—';
+  if(v>=1e12) return (v/1e12).toFixed(1)+'조';
+  if(v>=1e8)  return Math.round(v/1e8)+'억';
+  return v.toLocaleString()+'원';
+}
+
+function isMarketOpen() {
+  const now = new Date();
+  const day = now.getDay(); // 0=일, 6=토
+  if(day === 0 || day === 6) return false;
+  const h = now.getHours(), m = now.getMinutes();
+  const t = h * 100 + m;
+  return t >= 900 && t < 1530; // 09:00 ~ 15:30
+}
+
+function buildPriceCell(s) {
+  if(s.price == null) return `<span class="price-na">—</span>`;
+  const krx = `<span class="price-val">${Math.round(s.price).toLocaleString('ko-KR')}원</span>`;
+  if(!isMarketOpen() && s.nxtPrice != null) {
+    const nxtStr = Math.round(s.nxtPrice).toLocaleString('ko-KR');
+    const nxtChgCls = s.nxtChg > 0 ? 'chg-pos' : s.nxtChg < 0 ? 'chg-neg' : 'chg-neu';
+    const nxtChgStr = s.nxtChg != null
+      ? `<span class="${nxtChgCls}" style="font-size:10px;margin-left:2px">${s.nxtChg>0?'+':''}${s.nxtChg.toFixed(2)}%</span>`
+      : '';
+    return `<span style="white-space:nowrap">${krx} <span style="font-family:var(--mono);font-size:11px;color:var(--text3)">(NXT ${nxtStr}원</span>${nxtChgStr}<span style="font-family:var(--mono);font-size:11px;color:var(--text3)">)</span></span>`;
+  }
+  return krx;
+}
+
+function stkRender() {
+  const f = stkFilt();
+  document.getElementById('stk-empty').style.display = f.length===0?'block':'none';
+  document.getElementById('stk-body').innerHTML = f.map(s=>{
+    const chgHtml = s.chg!=null ? `<span class="${s.chg>0?'chg-pos':s.chg<0?'chg-neg':'chg-neu'}">${s.chg>0?'+':''}${s.chg.toFixed(2)}%</span>` : `<span class="chg-neu">—</span>`;
+    return `<tr>
+      <td style="font-weight:500">${s.name}</td>
+      <td><span style="font-family:var(--mono);font-size:12px;color:var(--text2)">${s.ticker}</span></td>
+      <td class="num-right" id="pr-${s.id}" style="white-space:nowrap">${buildPriceCell(s)}</td>
+      <td class="num-right" id="ch-${s.id}">${chgHtml}</td>
+      <td class="num-right" id="ca-${s.id}"><span class="cap-val">${fmtCap(s.cap)}</span></td>
+      <td><select class="pri-select" style="width:68px" onchange="stkChangeType(${s.id},this.value)">
+        <option value="hold" ${s.type==='hold'?'selected':''}>보유</option>
+        <option value="watch" ${s.type==='watch'?'selected':''}>관심</option>
+      </select></td>
+      <td style="font-size:12px;color:var(--text2);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.memo||''}">${s.memo||''}</td>
+      <td><button class="ref-btn" id="rb-${s.id}" onclick="fetchOne(${s.id})">↻</button></td>
+      <td><button class="del-btn" onclick="stkDel(${s.id})">제거</button></td>
+    </tr>`;
+  }).join('');
+  stkStats();
+}
+
+function stkStats() {
+  const priced = stks.filter(s=>s.chg!=null);
+  document.getElementById('stat-hold').textContent  = stks.filter(s=>s.type==='hold').length;
+  document.getElementById('stat-watch').textContent = stks.filter(s=>s.type==='watch').length;
+  document.getElementById('sc-all').textContent     = stks.length;
+  document.getElementById('sc-hold').textContent    = stks.filter(s=>s.type==='hold').length;
+  document.getElementById('sc-watch').textContent   = stks.filter(s=>s.type==='watch').length;
+  document.getElementById('sc-kospi').textContent   = stks.filter(s=>s.mkt==='kospi').length;
+  document.getElementById('sc-kosdaq').textContent  = stks.filter(s=>s.mkt==='kosdaq').length;
+  document.getElementById('sv-total').textContent   = stks.length;
+  document.getElementById('sv-up').textContent      = priced.filter(s=>s.chg>0).length || '—';
+  document.getElementById('sv-dn').textContent      = priced.filter(s=>s.chg<0).length || '—';
+  document.getElementById('sv-ne').textContent      = priced.filter(s=>s.chg===0).length || '—';
+}
+
+function stkChangeType(id, val) {
+  const s = stks.find(s=>s.id===id);
+  if(s) { s.type=val; stkSave(); stkStats(); }
+}
+
+function stkDel(id) {
+  stks = stks.filter(s=>s.id!==id); stkSave(); stkRender(); toast2('제거되었습니다');
+}
+
+function stkAdd() {
+  const n=document.getElementById('sn').value.trim();
+  const t=document.getElementById('st').value.trim().toUpperCase();
+  const c=document.getElementById('sc').value, m=document.getElementById('sm').value;
+  const memo=document.getElementById('sm2').value.trim();
+  if(!n||!t){toast2('종목명과 티커를 입력해주세요',true);return;}
+  const id=stNid++;
+  stks.push({id,name:n,ticker:t,type:c,mkt:m,memo,price:null,chg:null,cap:null});
+  document.getElementById('sn').value=document.getElementById('st').value=document.getElementById('sm2').value='';
+  stkSave(); stkRender(); toast2('추가 — 시세 조회 중...');
+  fetchOne(id);
+}
+
+/* ── KIS API 설정 ── */
+const KIS_KEY = 'kis_config_v1';
+let kisConfig = { appkey:'', appsecret:'', token:'', tokenExp:0 };
+
+function kisLoad() {
+  try { const d=JSON.parse(localStorage.getItem(KIS_KEY)||'null'); if(d) kisConfig=d; } catch(e){}
+}
+function kisSave() {
+  localStorage.setItem(KIS_KEY, JSON.stringify(kisConfig));
+}
+function kisReady() {
+  return kisConfig.appkey && kisConfig.appsecret;
+}
+function kisTokenValid() {
+  return kisConfig.token && Date.now() < kisConfig.tokenExp;
+}
+
+async function kisGetToken() {
+  if(kisTokenValid()) return kisConfig.token;
+  const res = await fetch('https://openapi.koreainvestment.com:9443/oauth2/tokenP', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      grant_type:'client_credentials',
+      appkey: kisConfig.appkey,
+      appsecret: kisConfig.appsecret
+    })
+  });
+  const data = await res.json();
+  if(!data.access_token) throw new Error('토큰 발급 실패: ' + (data.msg1||''));
+  kisConfig.token    = data.access_token;
+  kisConfig.tokenExp = Date.now() + (data.expires_in - 60) * 1000;
+  kisSave();
+  return kisConfig.token;
+}
+
+const PROXY = 'http://localhost:5000';
+let proxyOk = false;
+
+async function checkProxy() {
+  try {
+    const r = await fetch(PROXY + '/health', {signal: AbortSignal.timeout(2000)});
+    const d = await r.json();
+    proxyOk = d.status === 'ok';
+  } catch(e) { proxyOk = false; }
+  updateKisStatus();
+}
+
+async function kisFetchPrice(ticker) {
+  if(!kisReady()) throw new Error('KIS API 키 미설정');
+  if(!proxyOk) throw new Error('프록시 서버 미실행 (kis_proxy.py)');
+  const res = await fetch(`${PROXY}/price/${ticker}`, {
+    headers: { 'x-appkey': kisConfig.appkey, 'x-appsecret': kisConfig.appsecret }
+  });
+  const data = await res.json();
+  if(data.error) throw new Error(data.error);
+  return data;
+}
+
+async function fetchOne(id) {
+  const s = stks.find(s=>s.id===id); if(!s) return;
+  if(!kisReady()) { toast2('⚙ KIS 설정에서 API 키를 먼저 입력해주세요', true); openSettings(); return; }
+  if(!proxyOk) { toast2('프록시 서버를 먼저 실행해주세요 (kis_proxy.py)', true); return; }
+  const btn = document.getElementById('rb-'+id);
+  if(btn) btn.classList.add('spin');
+
+  const headers = { 'x-appkey': kisConfig.appkey, 'x-appsecret': kisConfig.appsecret };
+
+  try {
+    // KRX + NXT 동시 요청
+    const [krxRes, nxtRes] = await Promise.allSettled([
+      fetch(`${PROXY}/price/${s.ticker}`, {headers}),
+      fetch(`${PROXY}/price/nxt/${s.ticker}`, {headers})
+    ]);
+
+    // KRX 처리
+    if(krxRes.status==='fulfilled') {
+      const d = await krxRes.value.json();
+      if(!d.error) {
+        s.price=d.price; s.chg=d.change; s.cap=d.cap;
+        const ch=document.getElementById('ch-'+id), ca=document.getElementById('ca-'+id);
+        if(ch) ch.innerHTML=`<span class="${d.change>0?'chg-pos':d.change<0?'chg-neg':'chg-neu'}">${d.change>0?'+':''}${d.change.toFixed(2)}%</span>`;
+        if(ca) ca.innerHTML=`<span class="cap-val">${fmtCap(d.cap)}</span>`;
+      } else {
+        const pr=document.getElementById('pr-'+id);
+        if(pr) pr.innerHTML=`<span style="font-family:var(--mono);font-size:11px;color:var(--red)">${d.error}</span>`;
+      }
+    }
+
+    // NXT 처리
+    if(nxtRes.status==='fulfilled') {
+      const d = await nxtRes.value.json();
+      if(!d.error) { s.nxtPrice=d.price; s.nxtChg=d.change; }
+      else { s.nxtPrice=null; s.nxtChg=null; }
+    }
+
+    // 가격 셀 통합 업데이트
+    const pr=document.getElementById('pr-'+id);
+    if(pr) pr.innerHTML=buildPriceCell(s);
+
+    stkStats(); stkSave();
+  } catch(e) {
+    toast2('조회 실패: ' + (e.message||''), true);
+  } finally {
+    if(btn) btn.classList.remove('spin');
+  }
+}
+
+async function refreshAll() {
+  if(!stks.length){toast2('종목이 없습니다',true);return;}
+  if(!kisReady()){toast2('KIS API 키를 먼저 설정해주세요',true); openSettings(); return;}
+  toast2('전체 시세 갱신 중...');
+  for(const s of stks) await fetchOne(s.id);
+  document.getElementById('stk-refreshed').textContent = new Date().toLocaleString('ko-KR');
+  toast2('갱신 완료');
+}
+
+/* ── 설정 패널 ── */
+function openSettings() {
+  const panel = document.getElementById('settings-panel');
+  panel.style.display = 'flex';
+  document.getElementById('cfg-appkey').value    = kisConfig.appkey    || '';
+  document.getElementById('cfg-appsecret').value = kisConfig.appsecret || '';
+  const pEl = document.getElementById('proxy-status-txt');
+  if(pEl){ pEl.textContent = proxyOk ? '실행 중' : '미실행'; pEl.style.color = proxyOk ? 'var(--accent)' : 'var(--red)'; }
+  updateKisStatus();
+}
+function closeSettings() {
+  document.getElementById('settings-panel').style.display = 'none';
+}
+function saveSettings() {
+  const k = document.getElementById('cfg-appkey').value.trim();
+  const s = document.getElementById('cfg-appsecret').value.trim();
+  if(!k||!s){toast2('앱키와 시크릿을 모두 입력해주세요',true);return;}
+  kisConfig.appkey=k; kisConfig.appsecret=s; kisConfig.token=''; kisConfig.tokenExp=0;
+  kisSave(); updateKisStatus();
+  toast2('KIS API 설정이 저장되었습니다');
+  setTimeout(closeSettings, 800);
+}
+async function testKisToken() {
+  if(!kisReady()){toast2('먼저 저장을 눌러주세요',true);return;}
+  const btn=document.getElementById('test-btn');
+  btn.textContent='확인 중...'; btn.disabled=true;
+  await checkProxy();
+  if(!proxyOk){ toast2('프록시 서버가 실행 중이지 않아요 — kis_proxy.py를 먼저 실행해주세요', true); btn.textContent='연결 테스트'; btn.disabled=false; return; }
+  try {
+    const r = await fetch(PROXY+'/token', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({appkey:kisConfig.appkey, appsecret:kisConfig.appsecret})
+    });
+    const d = await r.json();
+    if(d.access_token){ kisConfig.token=d.access_token; kisConfig.tokenExp=Date.now()+86340000; kisSave(); toast2('KIS API 연결 성공'); }
+    else toast2('연결 실패: '+(d.error||''), true);
+    updateKisStatus();
+  } catch(e) {
+    toast2('연결 실패: '+e.message, true);
+  } finally {
+    btn.textContent='연결 테스트'; btn.disabled=false;
+  }
+}
+function updateKisStatus() {
+  const el = document.getElementById('kis-status');
+  if(!el) return;
+  if(!kisReady())   { el.textContent='미설정'; el.style.color='var(--text3)'; return; }
+  if(!proxyOk)      { el.textContent='서버 미실행'; el.style.color='var(--red)'; return; }
+  if(kisTokenValid()){ el.textContent='연결됨'; el.style.color='var(--accent)'; return; }
+  el.textContent='키 저장됨'; el.style.color='var(--accent2)';
+}
+
+function stkBuildTxt() {
+  return `한국 주식 투자분석 — 현재 종목 목록\n\n`+
+    stks.map((s,i)=>{
+      const p=s.price!=null?Math.round(s.price).toLocaleString('ko-KR')+'원':'시세없음';
+      const c=s.chg!=null?(s.chg>0?'+':'')+s.chg.toFixed(2)+'%':'';
+      return `${i+1}. [${s.type==='hold'?'보유':'관심'}][${s.mkt==='kospi'?'코스피':'코스닥'}] ${s.name} (${s.ticker}) ${p} ${c}${s.memo?' — '+s.memo:''}`;
+    }).join('\n');
+}
+function openStkModal(){openModal('// 종목 목록', stkBuildTxt());}
+
+/* ── INIT ── */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal(); closeSettings(); }
+  if (e.key === 'Enter') {
+    if (['fn','fu'].includes(e.target.id)) srcAdd();
+    if (['sn','st','sm2'].includes(e.target.id)) stkAdd();
+  }
+});
+
+kisLoad();
+const sAt = srcLoad();
+if(sAt) document.getElementById('src-saved').textContent = sAt;
+srcRender();
+stkLoad(); stkRender();
+checkProxy();
+setInterval(checkProxy, 10000);
+updateKisStatus();
+</script>
+</body>
+</html>
