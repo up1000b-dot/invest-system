@@ -83,6 +83,7 @@ td{padding:10px 12px;font-size:13px;color:var(--text);vertical-align:middle}
 .b-tg{background:var(--blue-dim);color:var(--blue);border:1px solid #1a3560}
 .b-news{background:var(--accent2-dim);color:var(--accent2);border:1px solid #3d2e00}
 .b-report{background:var(--accent-dim);color:var(--accent);border:1px solid #1a3d26}
+.b-personal{background:#1e1a2d;color:#c084fc;border:1px solid #3b2060}
 .b-hold{background:#1e1a2d;color:#a78bfa;border:1px solid #2e2550}
 .b-watch{background:#1a2020;color:#5eead4;border:1px solid #1a3530}
 
@@ -178,6 +179,7 @@ td{padding:10px 12px;font-size:13px;color:var(--text);vertical-align:middle}
       <button class="filter-btn" data-sf="telegram" onclick="srcFilter('telegram',this)">텔레그램<span class="count" id="cnt-tg">0</span></button>
       <button class="filter-btn" data-sf="news" onclick="srcFilter('news',this)">언론사<span class="count" id="cnt-news">0</span></button>
       <button class="filter-btn" data-sf="report" onclick="srcFilter('report',this)">리포트<span class="count" id="cnt-report">0</span></button>
+      <button class="filter-btn" data-sf="personal" onclick="srcFilter('personal',this)">개인자료<span class="count" id="cnt-personal">0</span></button>
     </div>
     <hr class="sidebar-divider"/>
     <div class="sidebar-section">
@@ -230,7 +232,7 @@ td{padding:10px 12px;font-size:13px;color:var(--text);vertical-align:middle}
       <div class="field" style="flex:0 0 128px"><label>채널명</label><input id="fn" placeholder="채널명"/></div>
       <div class="field" style="flex:1 1 200px"><label>URL</label><input id="fu" placeholder="https://"/></div>
       <div class="field" style="flex:0 0 108px"><label>유형</label>
-        <select id="ft"><option value="telegram">텔레그램</option><option value="news">언론사</option><option value="report">리포트</option></select>
+        <select id="ft"><option value="telegram">텔레그램</option><option value="news">언론사</option><option value="report">리포트</option><option value="personal">개인자료</option></select>
       </div>
       <div class="field" style="flex:0 0 96px"><label>중요도</label>
         <select id="fp"><option value="1">핵심</option><option value="2">참고</option><option value="3">보조</option></select>
@@ -417,8 +419,8 @@ const SDEFS = [
   {id:16,name:'KKK',           url:'https://t.me/kkkontemp',         type:'telegram', pri:3},
 ];
 
-const TL = {telegram:'텔레그램', news:'언론사', report:'리포트'};
-const TB = {telegram:'b-tg', news:'b-news', report:'b-report'};
+const TL = {telegram:'텔레그램', news:'언론사', report:'리포트', personal:'개인자료'};
+const TB = {telegram:'b-tg', news:'b-news', report:'b-report', personal:'b-personal'};
 const PL = {1:'핵심', 2:'참고', 3:'보조'};
 
 function srcLoad() {
@@ -468,14 +470,15 @@ function srcRender() {
 }
 
 function srcStats() {
-  document.getElementById('stat-src').textContent   = srcs.length;
-  document.getElementById('cnt-all').textContent    = srcs.length;
-  document.getElementById('cnt-tg').textContent     = srcs.filter(s=>s.type==='telegram').length;
-  document.getElementById('cnt-news').textContent   = srcs.filter(s=>s.type==='news').length;
-  document.getElementById('cnt-report').textContent = srcs.filter(s=>s.type==='report').length;
-  document.getElementById('cnt-p1').textContent     = srcs.filter(s=>s.pri===1).length;
-  document.getElementById('cnt-p2').textContent     = srcs.filter(s=>s.pri===2).length;
-  document.getElementById('cnt-p3').textContent     = srcs.filter(s=>s.pri===3).length;
+  document.getElementById('stat-src').textContent      = srcs.length;
+  document.getElementById('cnt-all').textContent       = srcs.length;
+  document.getElementById('cnt-tg').textContent        = srcs.filter(s=>s.type==='telegram').length;
+  document.getElementById('cnt-news').textContent      = srcs.filter(s=>s.type==='news').length;
+  document.getElementById('cnt-report').textContent    = srcs.filter(s=>s.type==='report').length;
+  document.getElementById('cnt-personal').textContent  = srcs.filter(s=>s.type==='personal').length;
+  document.getElementById('cnt-p1').textContent        = srcs.filter(s=>s.pri===1).length;
+  document.getElementById('cnt-p2').textContent        = srcs.filter(s=>s.pri===2).length;
+  document.getElementById('cnt-p3').textContent        = srcs.filter(s=>s.pri===3).length;
 }
 
 function srcFilter(f, btn) {
